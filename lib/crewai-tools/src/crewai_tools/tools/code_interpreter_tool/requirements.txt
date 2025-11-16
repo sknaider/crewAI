@@ -1,0 +1,6 @@
+# Pinned dependencies for Code Interpreter Tool
+# Enterprise standard: All versions must be pinned for security and reproducibility
+requests==2.32.3
+beautifulsoup4==4.12.3
+lxml==5.3.0
+charset-normalizer==3.3.2

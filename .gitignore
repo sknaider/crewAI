@@ -26,3 +26,14 @@ plan.md
 conceptual_plan.md
 build_image
 chromadb-*.lock
+
+# Coverage reports (enterprise quality gates)
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+coverage.json
+*.cover
+.hypothesis/
+.pytest_cache/
+cover/

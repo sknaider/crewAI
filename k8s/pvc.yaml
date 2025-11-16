@@ -1,0 +1,38 @@
+---
+# ============================================================================
+# PersistentVolumeClaim - Data Storage
+# ============================================================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: crewai-data-pvc
+  namespace: crewai
+  labels:
+    app: crewai
+spec:
+  accessModes:
+  - ReadWriteMany  # Multiple pods can read/write
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: efs-sc  # AWS EFS for multi-AZ
+  volumeMode: Filesystem
+
+---
+# ============================================================================
+# StorageClass - EFS for AWS (example)
+# ============================================================================
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: efs-sc
+provisioner: efs.csi.aws.com
+parameters:
+  provisioningMode: efs-ap
+  fileSystemId: fs-XXXXXXXX  # Replace with actual EFS ID
+  directoryPerms: "700"
+  gidRangeStart: "1000"
+  gidRangeEnd: "2000"
+  basePath: "/crewai"
+mountOptions:
+- tls

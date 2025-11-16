@@ -21,6 +21,8 @@ dev = [
     "pytest-timeout>=2.4.0",
     "pytest-xdist>=3.8.0",
     "pytest-split>=0.10.0",
+    "pytest-cov>=6.0.0",
+    "coverage[toml]>=7.6.0",
     "types-requests~=2.31.0.6",
     "types-pyyaml==6.0.*",
     "types-regex==2024.11.6.*",
@@ -153,3 +155,81 @@ members = [
 crewai = { workspace = true }
 crewai-tools = { workspace = true }
 crewai-devtools = { workspace = true }
+
+
+[tool.coverage.run]
+# Source code directories to measure coverage for
+source = ["lib/crewai/src", "lib/crewai-tools/src"]
+# Paths to omit from coverage measurement
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/cli/templates/*",
+    "*/experimental/*",
+    "*/__init__.py",
+    "*/conftest.py",
+]
+# Enable branch coverage (ensures both if/else paths are tested)
+branch = true
+# Parallel mode for multi-process testing (pytest-xdist)
+parallel = true
+# Measure coverage for subprocesses
+concurrency = ["thread", "multiprocessing"]
+# Include paths relative to project root
+relative_files = true
+
+[tool.coverage.report]
+# Decimal precision for percentages
+precision = 2
+# Show line numbers that are missing coverage
+show_missing = true
+# Skip files with 100% coverage (focus on gaps)
+skip_covered = false
+# Skip files that are empty
+skip_empty = true
+# Fail CI if coverage is below this threshold (enterprise standard: 80%)
+fail_under = 80.0
+# Sort the coverage report by percentage (lowest first)
+sort = "Cover"
+# Exclude specific lines from coverage measurement
+exclude_lines = [
+    # Default exclusions
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+    # Additional exclusions
+    "except ImportError:",
+    "if 0:",
+    "if False:",
+    "pass",
+]
+
+[tool.coverage.html]
+# Directory for HTML coverage report
+directory = "htmlcov"
+# Show contexts (which tests covered which lines)
+show_contexts = true
+
+[tool.coverage.xml]
+# Output file for XML coverage report (for CI/CD tools)
+output = "coverage.xml"
+
+[tool.coverage.json]
+# Output file for JSON coverage report (for dashboards)
+output = "coverage.json"
+# Pretty print JSON
+pretty_print = true
+# Show contexts in JSON
+show_contexts = true
+
+[tool.coverage.paths]
+# Combine coverage from different paths (useful for CI)
+source = [
+    "lib/crewai/src/crewai",
+    "lib/crewai-tools/src/crewai_tools",
+]

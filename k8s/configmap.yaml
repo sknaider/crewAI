@@ -1,0 +1,103 @@
+---
+# ============================================================================
+# ConfigMap - Application Configuration
+# ============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: crewai-config
+  namespace: crewai
+  labels:
+    app: crewai
+data:
+  # Application settings
+  CREWAI_HOME: "/app/data"
+  CREWAI_LOG_DIR: "/app/logs"
+  CREWAI_ENVIRONMENT: "production"
+
+  # Feature flags
+  CREWAI_FEATURE_ENHANCED_TELEMETRY: "true"
+  CREWAI_FEATURE_SMART_CACHING: "true"
+  CREWAI_FEATURE_COST_OPTIMIZATION: "true"
+
+  # Metrics and monitoring
+  CREWAI_METRICS_ENABLED: "true"
+  CREWAI_METRICS_PORT: "9090"
+  OTEL_SERVICE_NAME: "crewai"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+
+  # Logging configuration
+  CREWAI_LOG_LEVEL: "INFO"
+  CREWAI_LOG_FORMAT: "json"
+
+  # Performance settings
+  CREWAI_MAX_WORKERS: "4"
+  CREWAI_WORKER_TIMEOUT: "300"
+
+  # Rate limiting
+  CREWAI_RATE_LIMIT_REQUESTS: "100"
+  CREWAI_RATE_LIMIT_WINDOW: "60"
+
+  # Circuit breaker settings
+  CREWAI_CIRCUIT_BREAKER_THRESHOLD: "5"
+  CREWAI_CIRCUIT_BREAKER_TIMEOUT: "60"
+
+---
+# ============================================================================
+# ConfigMap - Prometheus Alerts
+# ============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: crewai-alerts
+  namespace: crewai
+  labels:
+    app: crewai
+data:
+  alerts.yml: |
+    groups:
+    - name: crewai
+      interval: 30s
+      rules:
+      # High error rate
+      - alert: HighErrorRate
+        expr: rate(crewai_system_errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value }} errors/sec"
+
+      # High LLM costs
+      - alert: HighLLMCost
+        expr: rate(crewai_estimated_cost_usd[1h]) > 10
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High LLM costs detected"
+          description: "LLM costs are ${{ $value }}/hour"
+
+      # Circuit breaker open
+      - alert: CircuitBreakerOpen
+        expr: crewai_circuit_breaker_state{state="open"} == 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Circuit breaker is open"
+          description: "Circuit {{ $labels.circuit_name }} is open"
+
+      # Low success rate
+      - alert: LowTaskSuccessRate
+        expr: |
+          rate(crewai_task_executions_total{status="success"}[5m])
+          /
+          rate(crewai_task_executions_total[5m]) < 0.9
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low task success rate"
+          description: "Task success rate is {{ $value | humanizePercentage }}"

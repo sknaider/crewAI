@@ -1,0 +1,61 @@
+---
+# ============================================================================
+# ServiceAccount - RBAC for CrewAI Pods
+# ============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: crewai-sa
+  namespace: crewai
+  labels:
+    app: crewai
+  annotations:
+    # AWS IRSA (IAM Roles for Service Accounts)
+    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/crewai-service-role
+
+---
+# ============================================================================
+# Role - Permissions within namespace
+# ============================================================================
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: crewai-role
+  namespace: crewai
+  labels:
+    app: crewai
+rules:
+# Read ConfigMaps
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list", "watch"]
+
+# Read Secrets
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list"]
+
+# Read Services (for service discovery)
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["get", "list"]
+
+---
+# ============================================================================
+# RoleBinding - Bind Role to ServiceAccount
+# ============================================================================
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: crewai-rolebinding
+  namespace: crewai
+  labels:
+    app: crewai
+subjects:
+- kind: ServiceAccount
+  name: crewai-sa
+  namespace: crewai
+roleRef:
+  kind: Role
+  name: crewai-role
+  apiGroup: rbac.authorization.k8s.io
