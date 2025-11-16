@@ -1,0 +1,100 @@
+# ============================================================================
+# Prometheus Alerting Rules for CrewAI
+# ============================================================================
+
+groups:
+  - name: crewai_alerts
+    interval: 30s
+    rules:
+      # High error rate alert
+      - alert: HighErrorRate
+        expr: rate(crewai_system_errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: crewai
+        annotations:
+          summary: "High error rate detected in CrewAI"
+          description: "Error rate is {{ $value | humanize }} errors/sec (threshold: 0.1)"
+
+      # Low success rate alert
+      - alert: LowSuccessRate
+        expr: |
+          (
+            rate(crewai_task_executions_total{status="success"}[5m])
+            /
+            rate(crewai_task_executions_total[5m])
+          ) < 0.9
+        for: 10m
+        labels:
+          severity: warning
+          component: crewai
+        annotations:
+          summary: "Low task success rate"
+          description: "Task success rate is {{ $value | humanizePercentage }} (threshold: 90%)"
+
+      # High LLM costs alert
+      - alert: HighLLMCost
+        expr: rate(crewai_estimated_cost_usd[1h]) * 3600 > 10
+        for: 15m
+        labels:
+          severity: warning
+          component: llm
+        annotations:
+          summary: "High LLM costs detected"
+          description: "Estimated cost is ${{ $value | humanize }}/hour (threshold: $10/hour)"
+
+      # Circuit breaker open alert
+      - alert: CircuitBreakerOpen
+        expr: crewai_circuit_breaker_state{state="open"} == 1
+        for: 1m
+        labels:
+          severity: critical
+          component: resilience
+        annotations:
+          summary: "Circuit breaker is open"
+          description: "Circuit {{ $labels.circuit_name }} is open, requests are being rejected"
+
+      # High latency alert
+      - alert: HighTaskLatency
+        expr: histogram_quantile(0.95, rate(crewai_task_duration_seconds_bucket[5m])) > 30
+        for: 10m
+        labels:
+          severity: warning
+          component: performance
+        annotations:
+          summary: "High task latency detected"
+          description: "P95 task duration is {{ $value | humanizeDuration }} (threshold: 30s)"
+
+      # No active crews (might indicate system down)
+      - alert: NoActiveCrews
+        expr: crewai_active_crews == 0
+        for: 5m
+        labels:
+          severity: warning
+          component: crewai
+        annotations:
+          summary: "No active crews detected"
+          description: "There are no active crews running for 5 minutes"
+
+      # High token usage
+      - alert: HighTokenUsage
+        expr: rate(crewai_token_usage_total[5m]) > 100000
+        for: 10m
+        labels:
+          severity: info
+          component: llm
+        annotations:
+          summary: "High token usage rate"
+          description: "Token usage rate is {{ $value | humanize }} tokens/sec"
+
+      # Prometheus target down
+      - alert: PrometheusTargetDown
+        expr: up{job="crewai"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: monitoring
+        annotations:
+          summary: "Prometheus target is down"
+          description: "{{ $labels.job }} target has been down for 2 minutes"

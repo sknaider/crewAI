@@ -1,27 +1,158 @@
+# ============================================================================
+# Pre-commit Configuration - Enterprise Quality Gates
+# ============================================================================
+# Automatically runs quality checks before commits
+#
+# Setup:
+#   pre-commit install
+#
+# Run manually:
+#   pre-commit run --all-files
+# ============================================================================
+
 repos:
+  # ============================================================================
+  # Python Code Quality (Ruff & MyPy)
+  # ============================================================================
   - repo: local
     hooks:
       - id: ruff
-        name: ruff
+        name: ruff (linter)
         entry: bash -c 'source .venv/bin/activate && uv run ruff check --config pyproject.toml "$@"' --
         language: system
         pass_filenames: true
         types: [python]
+        stages: [commit]
+
       - id: ruff-format
-        name: ruff-format
+        name: ruff (formatter)
         entry: bash -c 'source .venv/bin/activate && uv run ruff format --config pyproject.toml "$@"' --
         language: system
         pass_filenames: true
         types: [python]
+        stages: [commit]
+
       - id: mypy
-        name: mypy
+        name: mypy (type checker)
         entry: bash -c 'source .venv/bin/activate && uv run mypy --config-file pyproject.toml "$@"' --
         language: system
         pass_filenames: true
         types: [python]
         exclude: ^(lib/crewai/src/crewai/cli/templates/|lib/crewai/tests/|lib/crewai-tools/tests/)
+        stages: [commit]
+
+      - id: bandit
+        name: bandit (security scanner)
+        entry: bash -c 'source .venv/bin/activate && uv run bandit -r "$@" -c pyproject.toml' --
+        language: system
+        pass_filenames: true
+        types: [python]
+        exclude: ^(lib/crewai/src/crewai/cli/templates/|lib/crewai/tests/|lib/crewai-tools/tests/)
+        stages: [commit]
+
+  # ============================================================================
+  # UV Lock File Management
+  # ============================================================================
   - repo: https://github.com/astral-sh/uv-pre-commit
     rev: 0.9.3
     hooks:
       - id: uv-lock
+        name: uv lock (dependency management)
+        stages: [commit]
+
+  # ============================================================================
+  # File Quality Checks
+  # ============================================================================
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-yaml
+        name: check yaml syntax
+        exclude: ^helm/
+
+      - id: check-json
+        name: check json syntax
+
+      - id: check-toml
+        name: check toml syntax
+
+      - id: end-of-file-fixer
+        name: fix end of files
+
+      - id: trailing-whitespace
+        name: trim trailing whitespace
+        args: [--markdown-linebreak-ext=md]
+
+      - id: check-added-large-files
+        name: check for large files
+        args: ['--maxkb=1000']
+
+      - id: check-merge-conflict
+        name: check for merge conflicts
+
+      - id: check-case-conflict
+        name: check for case conflicts
+
+      - id: mixed-line-ending
+        name: check line endings
+        args: ['--fix=lf']
+
+      - id: detect-private-key
+        name: detect private keys
+
+  # ============================================================================
+  # Git Commit Message Quality
+  # ============================================================================
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v3.13.0
+    hooks:
+      - id: commitizen
+        name: commitizen (conventional commits)
+        stages: [commit-msg]
+
+  # ============================================================================
+  # Docker & Kubernetes
+  # ============================================================================
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.12.0
+    hooks:
+      - id: hadolint-docker
+        name: hadolint (Dockerfile linter)
+        args: ['--ignore', 'DL3008', '--ignore', 'DL3009']
+
+  # ============================================================================
+  # Secrets Detection
+  # ============================================================================
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        name: detect-secrets (secret scanner)
+        args: ['--baseline', '.secrets.baseline']
+        exclude: .*/tests/cassettes/.*\.yaml$
+
+  # ============================================================================
+  # Markdown Linting
+  # ============================================================================
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.39.0
+    hooks:
+      - id: markdownlint
+        name: markdownlint (markdown linter)
+        args: ['--fix']
+
+# ============================================================================
+# CI Configuration
+# ============================================================================
+ci:
+  autofix_commit_msg: |
+    🤖 Auto-fix: pre-commit hooks
+
+    [pre-commit.ci] auto fixes from pre-commit hooks
+  autofix_prs: true
+  autoupdate_branch: ''
+  autoupdate_commit_msg: '🤖 chore: pre-commit autoupdate'
+  autoupdate_schedule: monthly
+  skip: []
+  submodules: false
 

@@ -1,0 +1,273 @@
+# ============================================================================
+# CrewAI Helm Chart Values
+# ============================================================================
+# Override these values with your own values.yaml or --set flags
+#
+# Example:
+#   helm install crewai ./helm/crewai -f my-values.yaml
+#   helm install crewai ./helm/crewai --set image.tag=1.5.1
+# ============================================================================
+
+# ============================================================================
+# Image Configuration
+# ============================================================================
+image:
+  repository: crewai
+  pullPolicy: IfNotPresent
+  tag: "1.5.0"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# ============================================================================
+# Deployment Configuration
+# ============================================================================
+replicaCount: 3
+
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+
+# ============================================================================
+# Service Account
+# ============================================================================
+serviceAccount:
+  create: true
+  annotations: {}
+  # AWS IRSA example:
+  # annotations:
+  #   eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/crewai-role
+  name: ""
+
+# ============================================================================
+# Pod Configuration
+# ============================================================================
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "9090"
+  prometheus.io/path: "/metrics"
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  runAsGroup: 1001
+  fsGroup: 1001
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+# ============================================================================
+# Service Configuration
+# ============================================================================
+service:
+  type: LoadBalancer
+  port: 80
+  targetPort: 8000
+  metricsPort: 9090
+  annotations: {}
+  # AWS NLB example:
+  # annotations:
+  #   service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+  #   service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+
+# ============================================================================
+# Ingress Configuration (Optional)
+# ============================================================================
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations: {}
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  hosts:
+    - host: crewai.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: crewai-tls
+  #    hosts:
+  #      - crewai.example.com
+
+# ============================================================================
+# Resource Limits and Requests
+# ============================================================================
+resources:
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+    ephemeral-storage: 5Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+    ephemeral-storage: 1Gi
+
+# ============================================================================
+# Horizontal Pod Autoscaler
+# ============================================================================
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+  # Custom metrics example:
+  # metrics:
+  #   - type: Pods
+  #     pods:
+  #       metric:
+  #         name: http_requests_per_second
+  #       target:
+  #         type: AverageValue
+  #         averageValue: "100"
+
+# ============================================================================
+# Health Checks
+# ============================================================================
+livenessProbe:
+  httpGet:
+    path: /health/live
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  successThreshold: 1
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health/ready
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+  successThreshold: 1
+  failureThreshold: 3
+
+startupProbe:
+  httpGet:
+    path: /health/startup
+    port: http
+  initialDelaySeconds: 0
+  periodSeconds: 10
+  timeoutSeconds: 3
+  successThreshold: 1
+  failureThreshold: 30
+
+# ============================================================================
+# Node Selection and Affinity
+# ============================================================================
+nodeSelector: {}
+
+tolerations: []
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - crewai
+          topologyKey: kubernetes.io/hostname
+
+# ============================================================================
+# Persistence (PVC)
+# ============================================================================
+persistence:
+  enabled: true
+  storageClass: ""  # Use default or specify (e.g., "efs-sc")
+  accessMode: ReadWriteMany
+  size: 50Gi
+  annotations: {}
+
+# ============================================================================
+# Environment Variables
+# ============================================================================
+env:
+  ENVIRONMENT: production
+  CREWAI_LOG_LEVEL: INFO
+  CREWAI_LOG_FORMAT: json
+  CREWAI_METRICS_ENABLED: "true"
+  PYTHONUNBUFFERED: "1"
+
+# ============================================================================
+# ConfigMap
+# ============================================================================
+config:
+  CREWAI_HOME: "/app/data"
+  CREWAI_LOG_DIR: "/app/logs"
+  CREWAI_FEATURE_ENHANCED_TELEMETRY: "true"
+  CREWAI_FEATURE_SMART_CACHING: "true"
+
+# ============================================================================
+# Secrets (Create separately or use external secrets operator)
+# ============================================================================
+secrets:
+  # Set to true to create secret from values (not recommended for production)
+  create: false
+  # Use existing secret name
+  existingSecret: "crewai-secrets"
+  # Keys to expect in the secret:
+  # - openai-api-key
+  # - anthropic-api-key
+  # - database-url
+  # - redis-url
+
+# ============================================================================
+# External Dependencies
+# ============================================================================
+postgresql:
+  enabled: false
+  # If enabled, configure PostgreSQL chart values here
+  # auth:
+  #   username: crewai
+  #   password: changeme
+  #   database: crewai
+
+redis:
+  enabled: false
+  # If enabled, configure Redis chart values here
+  # architecture: standalone
+
+# ============================================================================
+# Monitoring and Observability
+# ============================================================================
+monitoring:
+  serviceMonitor:
+    enabled: false
+    # Prometheus Operator ServiceMonitor
+    interval: 30s
+    scrapeTimeout: 10s
+    labels: {}
+
+# ============================================================================
+# Network Policies (Optional)
+# ============================================================================
+networkPolicy:
+  enabled: false
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress: []
+  egress: []
+
+# ============================================================================
+# Pod Disruption Budget
+# ============================================================================
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+  # maxUnavailable: 1
